@@ -1,0 +1,4 @@
+Khronos OpenXR-SDK headers, version 1.1.63, from https://github.com/KhronosGroup/OpenXR-SDK
+(include/openxr/, commit f2448a8797).
+SPDX-License-Identifier: Apache-2.0 OR MIT. Copyright 2017-2026 The Khronos Group Inc.
+Used here under the MIT option; both licence texts are in LICENSE in this directory.

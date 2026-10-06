@@ -1,0 +1,62 @@
+name: Game report
+description: A Quest title that works, misbehaves or fails with this dispatcher
+title: "[game] "
+labels: ["game report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Remove personal data from logs before posting (home paths, user names, IP addresses, Steam IDs, serial numbers). Do not attach game files or APKs.
+  - type: input
+    id: game
+    attributes:
+      label: Game
+      description: Title and version.
+    validations:
+      required: true
+  - type: dropdown
+    id: engine
+    attributes:
+      label: Engine
+      options:
+        - Unity
+        - Unreal Engine 4
+        - Unreal Engine 5
+        - Godot
+        - Native / other
+        - Unknown
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Headset and runtime
+      description: For example "Steam Frame, SteamVR via FramePort" or "Pico 4, Pico runtime".
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Dispatcher and converter versions
+      description: Commit or release of this dispatcher, and the OVRPort / FramePort version used to convert the game.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: What you expected, what happened instead, and whether OVRPort's own dispatcher behaves differently.
+    validations:
+      required: true
+  - type: textarea
+    id: dispatch-log
+    attributes:
+      label: OpenXRDispatch log
+      description: Output of `adb logcat -d -s OpenXRDispatch` from start-up to the problem.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: unsupported
+    attributes:
+      label: unsupported lines
+      description: Every `unsupported:` line from FrameBridge or the OpenXR loader, if any.
+      render: text

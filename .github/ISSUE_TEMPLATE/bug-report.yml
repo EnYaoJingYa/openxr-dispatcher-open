@@ -1,0 +1,30 @@
+name: Bug report
+description: A bug in the dispatcher, its build or its tests
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: What you did, what you expected and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: Steps, commands or a host test that shows the problem.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Commit or release, and the NDK or host compiler if it is a build problem.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant `OpenXRDispatch` lines or build output. Remove personal data first.
+      render: text
