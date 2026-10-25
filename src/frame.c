@@ -111,11 +111,49 @@ static size_t layer_size(XrStructureType t)
     }
 }
 
+static bool layer_has_content(const XrCompositionLayerBaseHeader *layer)
+{
+    switch ((int)layer->type) {
+    case XR_TYPE_COMPOSITION_LAYER_PROJECTION: {
+        const XrCompositionLayerProjection *p = (const XrCompositionLayerProjection *)layer;
+        if (!p->viewCount || !p->views)
+            return false;
+        for (uint32_t i = 0; i < p->viewCount; i++)
+            if (p->views[i].subImage.swapchain == XR_NULL_HANDLE)
+                return false;
+        return true;
+    }
+    case XR_TYPE_COMPOSITION_LAYER_QUAD:
+        return ((const XrCompositionLayerQuad *)layer)->subImage.swapchain != XR_NULL_HANDLE;
+    case XR_TYPE_COMPOSITION_LAYER_CUBE_KHR:
+        return ((const XrCompositionLayerCubeKHR *)layer)->swapchain != XR_NULL_HANDLE;
+    case XR_TYPE_COMPOSITION_LAYER_CYLINDER_KHR:
+        return ((const XrCompositionLayerCylinderKHR *)layer)->subImage.swapchain != XR_NULL_HANDLE;
+    case XR_TYPE_COMPOSITION_LAYER_EQUIRECT_KHR:
+        return ((const XrCompositionLayerEquirectKHR *)layer)->subImage.swapchain != XR_NULL_HANDLE;
+    case XR_TYPE_COMPOSITION_LAYER_EQUIRECT2_KHR:
+        return ((const XrCompositionLayerEquirect2KHR *)layer)->subImage.swapchain != XR_NULL_HANDLE;
+    case XR_TYPE_COMPOSITION_LAYER_PASSTHROUGH_FB:
+    case XR_TYPE_COMPOSITION_LAYER_PASSTHROUGH_HTC:
+        return true;
+    default:
+        return true;
+    }
+}
+
 static const XrCompositionLayerBaseHeader *copy_layer(arena *a, const XrCompositionLayerBaseHeader *src)
 {
     size_t n = layer_size(src->type);
     if (!n) {
         xd_unsupported("layer type %d dropped from frames", (int)src->type);
+        return NULL;
+    }
+    if (!layer_has_content(src)) {
+        char key[64];
+        snprintf(key, sizeof key, "empty-layer:%d", (int)src->type);
+        if (xd_first(key))
+            xd_log(XD_WARN, "frame: dropped empty composition layer type %d (NULL swapchain/content)",
+                   (int)src->type);
         return NULL;
     }
     XrCompositionLayerBaseHeader *l = copy(a, src, n);
@@ -200,6 +238,8 @@ XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrEndFrame(XrSession session, const XrF
         snprintf(key, sizeof key, "endframe:%d", r);
         if (xd_first(key))
             xd_log(XD_WARN, "xrEndFrame -> %s (%u layers)", xd_result_name(r), info->layerCount);
+    } else if (xd_first("endframe-success")) {
+        xd_log(XD_INFO, "first frame submitted successfully (%u of %u layers)", count, info->layerCount);
     }
     return r;
 }

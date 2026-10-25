@@ -92,6 +92,15 @@ enum { XD_PLAIN = 0, XD_HOOK = 1 };
 bool xd_next_load(void);
 PFN_xrGetInstanceProcAddr xd_next_gipa(void);
 const char *xd_next_name(void);
+/* Lenovo ThinkReality VRX: Snapdragon Spaces uses the generic Android loader. */
+bool xd_is_vrx(void);
+/* Replace the selected loader with a runtime library discovered through the
+ * VRX Snapdragon Spaces provider. Returns false and leaves the current loader
+ * selected when the library cannot be opened. */
+bool xd_replace_next_loader(const char *path);
+bool xd_next_is_direct(void);
+/* Android-only: query the VRX provider and install libopenxr_monado.so. */
+bool xd_load_vrx_runtime(void);
 /* The next loader's function for a table entry, resolved lazily with the
  * current instance; NULL if it does not provide it. */
 PFN_xrVoidFunction xd_next(enum xd_fn_id id);

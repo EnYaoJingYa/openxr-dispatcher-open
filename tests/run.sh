@@ -24,6 +24,7 @@ cat > "$store/data/test_pkg/files/liboverport.config.so" <<'JSON'
   "database": [] }
 JSON
 OVERPORT_FORCE_LOADER_PATH="$out/libmock_next.so" XD_PACKAGE=test_pkg XD_STORAGE="$store" \
+XD_PROP_ro_product_brand=Lenovo XD_PROP_ro_product_model=VRX \
 XD_PROP_debug_sys_ovrport_fixedtexturewidth=1440 XD_PROP_debug_sys_ovrport_cpulevel=2 \
 XD_PROP_persist_sys_ovrport_cpulevel=3 LD_LIBRARY_PATH="$out" \
   "$out/test_host" "$out/libopenxr_loader.so" "$out/libmock_next.so"

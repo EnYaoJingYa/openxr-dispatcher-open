@@ -27,6 +27,7 @@
 #define FRAME "/interaction_profiles/valve/frame_controller_valve"
 #define TOUCH_PLUS "/interaction_profiles/meta/touch_controller_plus"
 #define NEO3 "/interaction_profiles/bytedance/pico_neo3_controller"
+#define PICO_NEO3 "/interaction_profiles/pico/neo3_controller"
 #define PICO4 "/interaction_profiles/bytedance/pico4_controller"
 #define PICO4S "/interaction_profiles/bytedance/pico4s_controller"
 #define SHORT(p) (strncmp((p), "/interaction_profiles/", 22) ? (p) : (p) + 22)
@@ -39,6 +40,8 @@ static struct alias {
     {NEO3, FRAME, 0, 0}, {PICO4, FRAME, 0, 0}, {PICO4S, FRAME, 0, 0},
     {TOUCH, FRAME, 0, 0},
     {NEO3, TOUCH_PLUS, 0, 0}, {PICO4, TOUCH_PLUS, 0, 0}, {PICO4S, TOUCH_PLUS, 0, 0},
+    {TOUCH, NEO3, 0, 0}, {TOUCH, PICO4, 0, 0}, {TOUCH, PICO4S, 0, 0},
+    {TOUCH, PICO_NEO3, 0, 0},
 };
 #define ALIAS_COUNT (sizeof g_alias / sizeof g_alias[0])
 
@@ -52,6 +55,16 @@ static const char *const k_left[][2] = {
     {"/user/hand/right/input/menu/click", "/user/hand/left/input/menu/click"},
     {"/user/hand/right/input/y/click", "/user/hand/left/input/y/click"},
     {"/user/hand/right/input/x/click", "/user/hand/left/input/x/click"},
+    {"/user/hand/right/input/a/click", "/user/hand/left/input/x/click"},
+    {"/user/hand/right/input/b/click", "/user/hand/left/input/y/click"},
+    {"/user/hand/right/input/a/touch", "/user/hand/left/input/x/touch"},
+    {"/user/hand/right/input/b/touch", "/user/hand/left/input/y/touch"},
+    {"/user/hand/left/input/back/click", "/user/hand/left/input/menu/click"},
+    {"/user/hand/right/input/back/click", "/user/hand/left/input/menu/click"},
+    {"/user/hand/left/input/home/click", "/user/hand/left/input/menu/click"},
+    {"/user/hand/right/input/home/click", "/user/hand/left/input/menu/click"},
+    {"/user/hand/left/input/system/click", "/user/hand/left/input/menu/click"},
+    {"/user/hand/right/input/system/click", "/user/hand/left/input/menu/click"},
 };
 
 XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrSuggestInteractionProfileBindings(

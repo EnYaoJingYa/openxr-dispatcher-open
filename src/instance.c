@@ -149,6 +149,18 @@ XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrInitializeLoaderKHR(const XrLoaderIni
         const xd_android_info *a = (const xd_android_info *)info;
         xd_android_init(a->vm, a->context);
     }
+    if (xd_next_is_direct()) {
+        PFN_xrVoidFunction initialize_void = NULL;
+        XrResult lookup = xd_next_gipa()(XR_NULL_HANDLE, "xrInitializeLoaderKHR", &initialize_void);
+        if (XR_SUCCEEDED(lookup) && initialize_void) {
+            PFN_xrInitializeLoaderKHR initialize = (PFN_xrInitializeLoaderKHR)initialize_void;
+            XrResult r = initialize(info);
+            xd_trace("xrInitializeLoaderKHR (VRX runtime)", r);
+            return r;
+        }
+        xd_trace("xrInitializeLoaderKHR (VRX runtime, not required)", XR_SUCCESS);
+        return XR_SUCCESS;
+    }
     PFN_xrInitializeLoaderKHR fn = NEXT(xrInitializeLoaderKHR);
     XrResult r = fn ? fn(info) : XR_ERROR_FUNCTION_UNSUPPORTED;
     if (XR_FAILED(r))
@@ -431,6 +443,8 @@ void xd_android_init(void *vm_ptr, void *context)
     xd_java_vm = vm;
     xd_activity = a ? (*env)->NewGlobalRef(env, a) : NULL;
     xd_log(XD_INFO, "Android: VM %p, %s %p", vm, context ? "context" : "activity found by class", xd_activity);
+      if (xd_is_vrx())
+          xd_load_vrx_runtime();
 }
 #else
 void xd_android_init(void *vm, void *context)

@@ -289,6 +289,27 @@ XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateViewConfigurationViews(XrIns
                         XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT | XR_SWAPCHAIN_USAGE_MUTABLE_FORMAT_BIT |               \
                         XR_SWAPCHAIN_USAGE_INPUT_ATTACHMENT_BIT_KHR)
 
+XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xd_xrEnumerateSwapchainFormats(
+    XrSession session, uint32_t capacity, uint32_t *count, int64_t *formats)
+{
+    PFN_xrEnumerateSwapchainFormats fn = NEXT(xrEnumerateSwapchainFormats);
+    XrResult r = fn ? fn(session, capacity, count, formats) : XR_ERROR_FUNCTION_UNSUPPORTED;
+    if (XR_SUCCEEDED(r) && formats && count && *count && xd_first("runtime-swapchain-formats")) {
+        char line[800] = "";
+        size_t used = 0;
+        uint32_t shown = *count < capacity ? *count : capacity;
+        for (uint32_t i = 0; i < shown; i++) {
+            int written = snprintf(line + used, sizeof line - used, "%s0x%llx", i ? " " : "",
+                                   (unsigned long long)formats[i]);
+            if (written <= 0 || used + (size_t)written >= sizeof line)
+                break;
+            used += (size_t)written;
+        }
+        xd_log(XD_INFO, "runtime swapchain formats (%u): %s", *count, line);
+    }
+    return r;
+}
+
 XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrCreateSwapchain(XrSession session, const XrSwapchainCreateInfo *info,
                                                           XrSwapchain *swapchain)
 {
@@ -299,6 +320,14 @@ XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrCreateSwapchain(XrSession session, co
         return fn(session, info, swapchain);
     XrSwapchainCreateInfo fixed = *info;
     fixed.usageFlags &= ~(XrSwapchainUsageFlags)USAGE_STRIPPED;
+      if (!xd_vulkan_session && fixed.format == 0x93d0) {
+          /* GL_COMPRESSED_SRGB8_ALPHA8_ASTC_4x4 is accepted by some Quest
+           * compositors as a render target. Monado/Spaces rejects it, so use
+           * the uncompressed sRGB renderable format with the same colour
+           * interpretation. */
+          fixed.format = 0x8c43; /* GL_SRGB8_ALPHA8 */
+          xd_log(XD_INFO, "swapchain format 0x93d0 -> 0x8c43 (VRX cannot render to ASTC)");
+      }
     if (!xd_vulkan_session && xd_looks_like_vk_format(fixed.format)) {
         int64_t gl = xd_vk_to_gl(fixed.format);
         char key[48];

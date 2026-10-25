@@ -29,6 +29,8 @@ typedef struct {
 #define XD_SPACE_META_FLOOR 1000043001
 
 uint32_t xd_runtime_extensions(const XrExtensionProperties **out);
+XRAPI_ATTR XrResult XRAPI_CALL xd_xrEnumerateSwapchainFormats(
+    XrSession session, uint32_t capacity, uint32_t *count, int64_t *formats);
 
 XRAPI_ATTR XrResult XRAPI_CALL xd_xrGetOpenGLESGraphicsRequirementsKHR(XrInstance i, XrSystemId s, xd_gles_requirements *r);
 XRAPI_ATTR XrResult XRAPI_CALL xd_xrGetVulkanInstanceExtensionsKHR(XrInstance i, XrSystemId s, uint32_t cap, uint32_t *n,

@@ -74,6 +74,8 @@ int main(int argc, char **argv)
     }
     mock = dlsym(mock_lib, "mock_state");
     gipa = FN(xrGetInstanceProcAddr);
+    bool (*is_vrx)(void) = (bool (*)(void))dlsym(lib, "xd_is_vrx");
+    CHECK(is_vrx != NULL && is_vrx());
     mock->head_height = 1.6f;
 
     /* ---- loader init and extensions */

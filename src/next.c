@@ -32,6 +32,38 @@ static void *g_lib;
 static PFN_xrGetInstanceProcAddr g_gipa;
 static char g_name[PATH_MAX];
 static pthread_once_t g_load_once = PTHREAD_ONCE_INIT;
+static bool g_is_vrx;
+static bool g_direct_runtime;
+
+/* Minimal declarations from openxr_loader_negotiation.h (Apache-2.0 OR MIT).
+ * Snapdragon Spaces exports the standard loader/runtime negotiation entry
+ * point rather than xrGetInstanceProcAddr itself. */
+enum {
+    XD_LOADER_INTERFACE_STRUCT_LOADER_INFO = 1,
+    XD_LOADER_INTERFACE_STRUCT_RUNTIME_REQUEST = 3,
+};
+
+typedef struct XdNegotiateLoaderInfo {
+    int structType;
+    uint32_t structVersion;
+    size_t structSize;
+    uint32_t minInterfaceVersion;
+    uint32_t maxInterfaceVersion;
+    XrVersion minApiVersion;
+    XrVersion maxApiVersion;
+} XdNegotiateLoaderInfo;
+
+typedef struct XdNegotiateRuntimeRequest {
+    int structType;
+    uint32_t structVersion;
+    size_t structSize;
+    uint32_t runtimeInterfaceVersion;
+    XrVersion runtimeApiVersion;
+    PFN_xrGetInstanceProcAddr getInstanceProcAddr;
+} XdNegotiateRuntimeRequest;
+
+typedef XrResult(XRAPI_PTR *PFN_xdNegotiateLoaderRuntimeInterface)(
+    const XdNegotiateLoaderInfo *, XdNegotiateRuntimeRequest *);
 
 static const char *pick_loader(const char *brand)
 {
@@ -50,7 +82,10 @@ static const char *pick_loader(const char *brand)
 static void load_next(void)
 {
     char brand[100];
+    char model[100];
     xd_property("ro.product.brand", brand, sizeof brand);
+    xd_property("ro.product.model", model, sizeof model);
+    g_is_vrx = strcasestr(brand, "lenovo") != NULL && strcasestr(model, "vrx") != NULL;
     const char *forced = getenv("OVERPORT_FORCE_LOADER_PATH");
     snprintf(g_name, sizeof g_name, "%s", forced && *forced ? forced : pick_loader(brand));
     g_lib = dlopen(g_name, RTLD_NOW | RTLD_LOCAL);
@@ -68,8 +103,9 @@ static void load_next(void)
         xd_log(XD_ERROR, "next loader %s resolves to this dispatcher; refusing it", g_name);
         g_gipa = NULL;
     }
-    xd_log(g_gipa ? XD_INFO : XD_ERROR, "open dispatcher %s: next loader %s (brand '%s')%s", XD_VERSION, g_name,
-           brand, g_gipa ? "" : " has no usable xrGetInstanceProcAddr");
+    xd_log(g_gipa ? XD_INFO : XD_ERROR,
+           "open dispatcher %s: next loader %s (brand '%s', model '%s'%s)%s", XD_VERSION, g_name, brand, model,
+           g_is_vrx ? ", ThinkReality VRX" : "", g_gipa ? "" : " has no usable xrGetInstanceProcAddr");
 }
 
 bool xd_next_load(void)
@@ -85,6 +121,67 @@ PFN_xrGetInstanceProcAddr xd_next_gipa(void)
 }
 
 const char *xd_next_name(void) { return g_name; }
+
+bool xd_is_vrx(void)
+{
+    xd_next_load();
+    return g_is_vrx;
+}
+
+bool xd_replace_next_loader(const char *path)
+{
+    if (!path || !*path)
+        return false;
+    void *lib = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+    if (!lib) {
+        xd_log(XD_ERROR, "VRX runtime %s failed to load: %s", path, dlerror());
+        return false;
+    }
+    PFN_xrGetInstanceProcAddr gipa = (PFN_xrGetInstanceProcAddr)dlsym(lib, "xrGetInstanceProcAddr");
+    if (!gipa) {
+        PFN_xdNegotiateLoaderRuntimeInterface negotiate =
+            (PFN_xdNegotiateLoaderRuntimeInterface)dlsym(lib, "xrNegotiateLoaderRuntimeInterface");
+        if (negotiate) {
+            XdNegotiateLoaderInfo loader_info = {
+                XD_LOADER_INTERFACE_STRUCT_LOADER_INFO,
+                1,
+                sizeof(XdNegotiateLoaderInfo),
+                1,
+                1,
+                XR_MAKE_VERSION(1, 0, 0),
+                XR_MAKE_VERSION(1, 0x3ff, 0xfff),
+            };
+            XdNegotiateRuntimeRequest runtime_info = {
+                XD_LOADER_INTERFACE_STRUCT_RUNTIME_REQUEST,
+                1,
+                sizeof(XdNegotiateRuntimeRequest),
+                0,
+                0,
+                NULL,
+            };
+            XrResult negotiated = negotiate(&loader_info, &runtime_info);
+            if (XR_SUCCEEDED(negotiated))
+                gipa = runtime_info.getInstanceProcAddr;
+            else
+                xd_log(XD_ERROR, "VRX runtime negotiation failed: %s", xd_result_name(negotiated));
+        }
+    }
+    if (!gipa || gipa == xrGetInstanceProcAddr) {
+        xd_log(XD_ERROR, "VRX runtime %s has no usable xrGetInstanceProcAddr", path);
+        dlclose(lib);
+        return false;
+    }
+    if (g_lib)
+        dlclose(g_lib);
+    g_lib = lib;
+    g_gipa = gipa;
+    g_direct_runtime = true;
+    snprintf(g_name, sizeof g_name, "%s", path);
+    xd_log(XD_INFO, "VRX: using Snapdragon Spaces runtime %s", path);
+    return true;
+}
+
+bool xd_next_is_direct(void) { return g_direct_runtime; }
 
 /* ------------------------------------------------------------------ table */
 
@@ -204,7 +301,6 @@ FORWARD(xrEnumerateViewConfigurations, (XrInstance i, XrSystemId s, uint32_t cap
         (i, s, cap, n, t))
 FORWARD(xrGetViewConfigurationProperties,
         (XrInstance i, XrSystemId s, XrViewConfigurationType t, XrViewConfigurationProperties *p), (i, s, t, p))
-FORWARD(xrEnumerateSwapchainFormats, (XrSession s, uint32_t cap, uint32_t *n, int64_t *f), (s, cap, n, f))
 FORWARD(xrDestroySwapchain, (XrSwapchain s), (s))
 FORWARD(xrEnumerateSwapchainImages, (XrSwapchain s, uint32_t cap, uint32_t *n, XrSwapchainImageBaseHeader *i),
         (s, cap, n, i))
@@ -234,6 +330,12 @@ FORWARD(xrGetInputSourceLocalizedName,
         (XrSession s, const XrInputSourceLocalizedNameGetInfo *i, uint32_t cap, uint32_t *n, char *b), (s, i, cap, n, b))
 FORWARD(xrLocateSpaces, (XrSession s, const XrSpacesLocateInfo *i, XrSpaceLocations *l), (s, i, l))
 
+XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateSwapchainFormats(
+    XrSession session, uint32_t capacity, uint32_t *count, int64_t *formats)
+{
+    return xd_xrEnumerateSwapchainFormats(session, capacity, count, formats);
+}
+
 /* ------------------------------------------------------------------ hooks */
 
 PFN_xrVoidFunction xd_hook(enum xd_fn_id id)
@@ -245,7 +347,8 @@ PFN_xrVoidFunction xd_hook(enum xd_fn_id id)
         CORE(xrCreateInstance) CORE(xrDestroyInstance) CORE(xrGetInstanceProperties) CORE(xrGetSystemProperties)
         CORE(xrPollEvent) CORE(xrCreateSession) CORE(xrDestroySession) CORE(xrBeginSession) CORE(xrEndSession)
         CORE(xrCreateReferenceSpace) CORE(xrCreateActionSpace) CORE(xrLocateSpace)
-        CORE(xrEnumerateViewConfigurationViews) CORE(xrCreateSwapchain) CORE(xrEndFrame) CORE(xrWaitFrame)
+        CORE(xrEnumerateViewConfigurationViews) CORE(xrEnumerateSwapchainFormats) CORE(xrCreateSwapchain)
+        CORE(xrEndFrame) CORE(xrWaitFrame)
         CORE(xrSuggestInteractionProfileBindings) CORE(xrGetCurrentInteractionProfile) CORE(xrDestroyAction)
         CORE(xrApplyHapticFeedback) CORE(xrStopHapticFeedback)
         EXT(xrGetOpenGLESGraphicsRequirementsKHR) EXT(xrGetVulkanInstanceExtensionsKHR)

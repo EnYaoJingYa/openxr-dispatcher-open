@@ -16,6 +16,38 @@ under the `OpenXRDispatch` logcat tag.
 Chain on the Steam Frame:
 game -> **this dispatcher** -> FrameBridge (FramePort) -> Khronos OpenXR loader -> SteamVR.
 
+Lenovo ThinkReality VRX uses the same generic-loader path:
+
+game -> **this dispatcher** -> `libopenxr_loader_generic.so` -> Snapdragon Spaces OpenXR runtime.
+
+The VRX runtime advertises `/interaction_profiles/oculus/touch_controller`, so Quest
+Touch bindings and the two 6DoF controllers can be forwarded without a vendor-private
+interaction profile translation.
+
+Snapdragon Spaces does not provide the standard Khronos Android broker authority.
+On Lenovo VRX the dispatcher queries:
+
+```text
+content://com.qualcomm.qti.openxrruntime_broker/runtime
+```
+
+It then negotiates the standard loader/runtime interface with
+`libopenxr_monado.so`. This is runtime discovery, not static linkage to a
+particular firmware path.
+
+VRX-specific compatibility in the dispatcher:
+
+- empty composition layers and NULL swapchains are dropped before `xrEndFrame`;
+- GLES ASTC sRGB swapchain format `0x93D0` is replaced by renderable
+  `GL_SRGB8_ALPHA8` (`0x8C43`) because the Spaces compositor rejects it;
+- Pico Neo3 bindings are aliased to Oculus Touch, with A/B mapped to X/Y and
+  Back/Home/System mapped to Menu;
+- the runtime's strict layer validation no longer receives NULL image layers.
+
+The stereo UI and controller binding path have been validated on ThinkReality
+VRX firmware `VRX_user_S1154001_2406262352_kona`; broader game compatibility
+still requires per-title testing.
+
 ## Status
 
 Version 1.0.0. Tested on the Steam Frame (SteamVR runtime via FramePort's FrameBridge) with
