@@ -309,19 +309,12 @@ FORWARD(xrWaitSwapchainImage, (XrSwapchain s, const XrSwapchainImageWaitInfo *i)
 FORWARD(xrReleaseSwapchainImage, (XrSwapchain s, const XrSwapchainImageReleaseInfo *i), (s, i))
 FORWARD(xrRequestExitSession, (XrSession s), (s))
 FORWARD(xrBeginFrame, (XrSession s, const XrFrameBeginInfo *i), (s, i))
-FORWARD(xrLocateViews,
-        (XrSession s, const XrViewLocateInfo *i, XrViewState *st, uint32_t cap, uint32_t *n, XrView *v),
-        (s, i, st, cap, n, v))
 FORWARD(xrStringToPath, (XrInstance i, const char *s, XrPath *p), (i, s, p))
 FORWARD(xrPathToString, (XrInstance i, XrPath p, uint32_t cap, uint32_t *n, char *b), (i, p, cap, n, b))
 FORWARD(xrCreateActionSet, (XrInstance i, const XrActionSetCreateInfo *c, XrActionSet *s), (i, c, s))
 FORWARD(xrDestroyActionSet, (XrActionSet s), (s))
 FORWARD(xrCreateAction, (XrActionSet s, const XrActionCreateInfo *c, XrAction *a), (s, c, a))
 FORWARD(xrAttachSessionActionSets, (XrSession s, const XrSessionActionSetsAttachInfo *i), (s, i))
-FORWARD(xrGetActionStateBoolean, (XrSession s, const XrActionStateGetInfo *i, XrActionStateBoolean *st), (s, i, st))
-FORWARD(xrGetActionStateFloat, (XrSession s, const XrActionStateGetInfo *i, XrActionStateFloat *st), (s, i, st))
-FORWARD(xrGetActionStateVector2f, (XrSession s, const XrActionStateGetInfo *i, XrActionStateVector2f *st), (s, i, st))
-FORWARD(xrGetActionStatePose, (XrSession s, const XrActionStateGetInfo *i, XrActionStatePose *st), (s, i, st))
 FORWARD(xrSyncActions, (XrSession s, const XrActionsSyncInfo *i), (s, i))
 FORWARD(xrEnumerateBoundSourcesForAction,
         (XrSession s, const XrBoundSourcesForActionEnumerateInfo *i, uint32_t cap, uint32_t *n, XrPath *p),
@@ -336,6 +329,37 @@ XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateSwapchainFormats(
     return xd_xrEnumerateSwapchainFormats(session, capacity, count, formats);
 }
 
+XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrLocateViews(
+    XrSession session, const XrViewLocateInfo *info, XrViewState *state, uint32_t capacity,
+    uint32_t *count, XrView *views)
+{
+    return xd_xrLocateViews(session, info, state, capacity, count, views);
+}
+
+XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrGetActionStateBoolean(
+    XrSession session, const XrActionStateGetInfo *info, XrActionStateBoolean *state)
+{
+    return xd_xrGetActionStateBoolean(session, info, state);
+}
+
+XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrGetActionStateFloat(
+    XrSession session, const XrActionStateGetInfo *info, XrActionStateFloat *state)
+{
+    return xd_xrGetActionStateFloat(session, info, state);
+}
+
+XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrGetActionStateVector2f(
+    XrSession session, const XrActionStateGetInfo *info, XrActionStateVector2f *state)
+{
+    return xd_xrGetActionStateVector2f(session, info, state);
+}
+
+XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrGetActionStatePose(
+    XrSession session, const XrActionStateGetInfo *info, XrActionStatePose *state)
+{
+    return xd_xrGetActionStatePose(session, info, state);
+}
+
 /* ------------------------------------------------------------------ hooks */
 
 PFN_xrVoidFunction xd_hook(enum xd_fn_id id)
@@ -348,7 +372,8 @@ PFN_xrVoidFunction xd_hook(enum xd_fn_id id)
         CORE(xrPollEvent) CORE(xrCreateSession) CORE(xrDestroySession) CORE(xrBeginSession) CORE(xrEndSession)
         CORE(xrCreateReferenceSpace) CORE(xrCreateActionSpace) CORE(xrLocateSpace)
         CORE(xrEnumerateViewConfigurationViews) CORE(xrEnumerateSwapchainFormats) CORE(xrCreateSwapchain)
-        CORE(xrEndFrame) CORE(xrWaitFrame)
+        CORE(xrEndFrame) CORE(xrWaitFrame) CORE(xrLocateViews) CORE(xrGetActionStateBoolean)
+        CORE(xrGetActionStateFloat) CORE(xrGetActionStateVector2f) CORE(xrGetActionStatePose)
         CORE(xrSuggestInteractionProfileBindings) CORE(xrGetCurrentInteractionProfile) CORE(xrDestroyAction)
         CORE(xrApplyHapticFeedback) CORE(xrStopHapticFeedback)
         EXT(xrGetOpenGLESGraphicsRequirementsKHR) EXT(xrGetVulkanInstanceExtensionsKHR)

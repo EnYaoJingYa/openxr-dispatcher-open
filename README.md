@@ -48,6 +48,11 @@ The stereo UI and controller binding path have been validated on ThinkReality
 VRX firmware `VRX_user_S1154001_2406262352_kona`; broader game compatibility
 still requires per-title testing.
 
+Runtime diagnostics also verify six-degree-of-freedom tracking from live
+sessions: the head view reports valid position/orientation flags, and two
+controller spaces report position, orientation, linear velocity and angular
+velocity (`locationFlags == 0xF`).
+
 ## Status
 
 Version 1.0.0. Tested on the Steam Frame (SteamVR runtime via FramePort's FrameBridge) with

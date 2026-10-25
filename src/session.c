@@ -254,7 +254,22 @@ XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrLocateSpace(XrSpace space, XrSpace ba
         return XR_ERROR_FUNCTION_UNSUPPORTED;
     if (time == 0)
         time = monotonic_ns(); /* as OVRPort: some Quest titles pass 0 for "now" */
-    return fn(space, base, time, loc);
+    XrResult r = fn(space, base, time, loc);
+    static XrSpace seen[16];
+    static uint32_t seen_count;
+    if (XR_SUCCEEDED(r) && loc) {
+        bool fresh = true;
+        for (uint32_t i = 0; i < seen_count; i++)
+            fresh &= seen[i] != space;
+        bool pose_words = (loc->locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) &&
+                          (loc->locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT);
+        if (fresh && pose_words && seen_count < sizeof seen / sizeof seen[0]) {
+            seen[seen_count++] = space;
+            xd_log(XD_INFO, "tracked space %p: position valid, orientation valid (flags 0x%llx)",
+                   space, (unsigned long long)loc->locationFlags);
+        }
+    }
+    return r;
 }
 
 /* ------------------------------------------------------------------- views */
@@ -280,6 +295,21 @@ XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateViewConfigurationViews(XrIns
                    views[0].recommendedImageRectWidth, views[0].recommendedImageRectHeight);
     }
     xd_trace("xrEnumerateViewConfigurationViews", r);
+    return r;
+}
+
+XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xd_xrLocateViews(
+    XrSession session, const XrViewLocateInfo *info, XrViewState *state, uint32_t capacity,
+    uint32_t *count, XrView *views)
+{
+    PFN_xrLocateViews fn = NEXT(xrLocateViews);
+    XrResult r = fn ? fn(session, info, state, capacity, count, views) : XR_ERROR_FUNCTION_UNSUPPORTED;
+    XrSpaceLocationFlags required =
+        XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
+    if (XR_SUCCEEDED(r) && state && (state->viewStateFlags & required) == required &&
+        xd_first("head-pose-valid"))
+        xd_log(XD_INFO, "head pose valid: 6DoF position and orientation flags 0x%llx",
+               (unsigned long long)state->viewStateFlags);
     return r;
 }
 
@@ -320,14 +350,14 @@ XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrCreateSwapchain(XrSession session, co
         return fn(session, info, swapchain);
     XrSwapchainCreateInfo fixed = *info;
     fixed.usageFlags &= ~(XrSwapchainUsageFlags)USAGE_STRIPPED;
-      if (!xd_vulkan_session && fixed.format == 0x93d0) {
-          /* GL_COMPRESSED_SRGB8_ALPHA8_ASTC_4x4 is accepted by some Quest
-           * compositors as a render target. Monado/Spaces rejects it, so use
-           * the uncompressed sRGB renderable format with the same colour
-           * interpretation. */
-          fixed.format = 0x8c43; /* GL_SRGB8_ALPHA8 */
-          xd_log(XD_INFO, "swapchain format 0x93d0 -> 0x8c43 (VRX cannot render to ASTC)");
-      }
+    if (!xd_vulkan_session && fixed.format == 0x93d0) {
+        /* GL_COMPRESSED_SRGB8_ALPHA8_ASTC_4x4 is accepted by some Quest
+         * compositors as a render target. Monado/Spaces rejects it, so use
+         * the uncompressed sRGB renderable format with the same colour
+         * interpretation. */
+        fixed.format = 0x8c43; /* GL_SRGB8_ALPHA8 */
+        xd_log(XD_INFO, "swapchain format 0x93d0 -> 0x8c43 (VRX cannot render to ASTC)");
+    }
     if (!xd_vulkan_session && xd_looks_like_vk_format(fixed.format)) {
         int64_t gl = xd_vk_to_gl(fixed.format);
         char key[48];

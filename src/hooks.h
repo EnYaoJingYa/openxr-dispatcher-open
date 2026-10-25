@@ -29,6 +29,17 @@ typedef struct {
 #define XD_SPACE_META_FLOOR 1000043001
 
 uint32_t xd_runtime_extensions(const XrExtensionProperties **out);
+XRAPI_ATTR XrResult XRAPI_CALL xd_xrLocateViews(
+    XrSession session, const XrViewLocateInfo *info, XrViewState *state, uint32_t capacity,
+    uint32_t *count, XrView *views);
+XRAPI_ATTR XrResult XRAPI_CALL xd_xrGetActionStateBoolean(
+    XrSession session, const XrActionStateGetInfo *info, XrActionStateBoolean *state);
+XRAPI_ATTR XrResult XRAPI_CALL xd_xrGetActionStateFloat(
+    XrSession session, const XrActionStateGetInfo *info, XrActionStateFloat *state);
+XRAPI_ATTR XrResult XRAPI_CALL xd_xrGetActionStateVector2f(
+    XrSession session, const XrActionStateGetInfo *info, XrActionStateVector2f *state);
+XRAPI_ATTR XrResult XRAPI_CALL xd_xrGetActionStatePose(
+    XrSession session, const XrActionStateGetInfo *info, XrActionStatePose *state);
 XRAPI_ATTR XrResult XRAPI_CALL xd_xrEnumerateSwapchainFormats(
     XrSession session, uint32_t capacity, uint32_t *count, int64_t *formats);
 

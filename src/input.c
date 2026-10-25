@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <math.h>
 
 #include "dispatch.h"
 
@@ -44,6 +45,72 @@ static struct alias {
     {TOUCH, PICO_NEO3, 0, 0},
 };
 #define ALIAS_COUNT (sizeof g_alias / sizeof g_alias[0])
+
+static bool first_action(XrAction action, XrAction *seen, uint32_t *seen_count)
+{
+    for (uint32_t i = 0; i < *seen_count; i++)
+        if (seen[i] == action)
+            return false;
+    if (*seen_count >= 16)
+        return false;
+    seen[(*seen_count)++] = action;
+    return true;
+}
+
+XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xd_xrGetActionStateBoolean(
+    XrSession session, const XrActionStateGetInfo *info, XrActionStateBoolean *state)
+{
+    PFN_xrGetActionStateBoolean fn = NEXT(xrGetActionStateBoolean);
+    XrResult r = fn ? fn(session, info, state) : XR_ERROR_FUNCTION_UNSUPPORTED;
+    static XrAction seen[16];
+    static uint32_t seen_count;
+    if (XR_SUCCEEDED(r) && info && state && state->isActive && state->changedSinceLastSync &&
+        state->currentState == XR_TRUE && first_action(info->action, seen, &seen_count))
+        xd_log(XD_INFO, "controller action active: boolean press reached the dispatcher");
+    return r;
+}
+
+XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xd_xrGetActionStateFloat(
+    XrSession session, const XrActionStateGetInfo *info, XrActionStateFloat *state)
+{
+    PFN_xrGetActionStateFloat fn = NEXT(xrGetActionStateFloat);
+    XrResult r = fn ? fn(session, info, state) : XR_ERROR_FUNCTION_UNSUPPORTED;
+    static XrAction seen[16];
+    static uint32_t seen_count;
+    if (XR_SUCCEEDED(r) && info && state && state->isActive && state->changedSinceLastSync &&
+        fabsf(state->currentState) > 0.2f && first_action(info->action, seen, &seen_count))
+        xd_log(XD_INFO, "controller action active: analog value %.2f reached the dispatcher",
+               state->currentState);
+    return r;
+}
+
+XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xd_xrGetActionStateVector2f(
+    XrSession session, const XrActionStateGetInfo *info, XrActionStateVector2f *state)
+{
+    PFN_xrGetActionStateVector2f fn = NEXT(xrGetActionStateVector2f);
+    XrResult r = fn ? fn(session, info, state) : XR_ERROR_FUNCTION_UNSUPPORTED;
+    static XrAction seen[16];
+    static uint32_t seen_count;
+    float length = state ? hypotf(state->currentState.x, state->currentState.y) : 0.0f;
+    if (XR_SUCCEEDED(r) && info && state && state->isActive && state->changedSinceLastSync &&
+        length > 0.2f && first_action(info->action, seen, &seen_count))
+        xd_log(XD_INFO, "controller action active: thumbstick/vector value (%.2f, %.2f)",
+               state->currentState.x, state->currentState.y);
+    return r;
+}
+
+XD_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xd_xrGetActionStatePose(
+    XrSession session, const XrActionStateGetInfo *info, XrActionStatePose *state)
+{
+    PFN_xrGetActionStatePose fn = NEXT(xrGetActionStatePose);
+    XrResult r = fn ? fn(session, info, state) : XR_ERROR_FUNCTION_UNSUPPORTED;
+    static XrAction seen[16];
+    static uint32_t seen_count;
+    if (XR_SUCCEEDED(r) && info && state && state->isActive &&
+        first_action(info->action, seen, &seen_count))
+        xd_log(XD_INFO, "controller action active: tracked pose action");
+    return r;
+}
 
 static const char *const k_removed[] = {
     "proximity_fb", "input/dpad_up", "input/dpad_down", "input/dpad_left", "input/dpad_right",
