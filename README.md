@@ -53,6 +53,12 @@ sessions: the head view reports valid position/orientation flags, and two
 controller spaces report position, orientation, linear velocity and angular
 velocity (`locationFlags == 0xF`).
 
+Physical VRX controller input has reached OpenXR action callbacks: trigger or
+analog actions reported changing values (including `1.00`, `0.50`, `0.40` and
+`0.30`) and boolean button actions reported changed presses. The tested title
+remained responsive with its 90 fps stereo UI; PC discovery and title-specific
+network/account behavior remain outside this input smoke test.
+
 ## Status
 
 Version 1.0.0. Tested on the Steam Frame (SteamVR runtime via FramePort's FrameBridge) with
